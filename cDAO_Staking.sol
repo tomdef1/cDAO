@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts@4.7.0/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts@4.7.0/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts@4.7.0/access/Ownable.sol";
 
 contract SimpleTokenStakingWithLockup is ReentrancyGuard, Ownable {
     IERC20 public stakingToken;   // Token that users stake.
