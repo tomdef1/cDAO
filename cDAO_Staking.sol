@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity 0.8.18;
 
 import "@openzeppelin/contracts@4.7.0/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts@4.7.0/security/ReentrancyGuard.sol";
@@ -23,6 +23,9 @@ contract SimpleTokenStakingWithLockup is ReentrancyGuard, Ownable {
     event Staked(address indexed user, uint256 amount, uint256 timestamp);
     event Withdrawn(address indexed user, uint256 amount, uint256 timestamp);
     event RewardPaid(address indexed user, uint256 reward);
+    event StakingTokenUpdated(address indexed newStakingToken);
+    event RewardTokenUpdated(address indexed newRewardToken);
+    event LockupPeriodUpdated(uint256 newLockupPeriod);
 
     constructor(address _stakingToken, address _rewardToken, uint256 _lockupPeriod) {
         stakingToken = IERC20(_stakingToken);
@@ -90,9 +93,24 @@ contract SimpleTokenStakingWithLockup is ReentrancyGuard, Ownable {
         return stakingToken.balanceOf(address(this));
     }
 
+    // Owner can update the staking token.
+    function setStakingToken(address _newStakingToken) external onlyOwner {
+        require(_newStakingToken != address(0), "New staking token address is the zero address");
+        stakingToken = IERC20(_newStakingToken);
+        emit StakingTokenUpdated(_newStakingToken);
+    }
+
+    // Owner can update the reward token.
+    function setRewardToken(address _newRewardToken) external onlyOwner {
+        require(_newRewardToken != address(0), "New reward token address is the zero address");
+        rewardToken = IERC20(_newRewardToken);
+        emit RewardTokenUpdated(_newRewardToken);
+    }
+
     // Owner can update the lockup period.
-    function setLockupPeriod(uint256 _lockupPeriod) external onlyOwner {
-        lockupPeriod = _lockupPeriod;
+    function setLockupPeriod(uint256 _newLockupPeriod) external onlyOwner {
+        lockupPeriod = _newLockupPeriod;
+        emit LockupPeriodUpdated(_newLockupPeriod);
     }
 
     // Owner can update the reward rate.
