@@ -9,10 +9,10 @@ contract SimpleTokenStakingWithLockup is ReentrancyGuard, Ownable {
     IERC20 public stakingToken;   // Token that users stake.
     IERC20 public rewardToken;    // Token that users earn.
 
-    uint256 public rewardRate;    // Rate at which rewards are generated per token per second.
+    uint256 public rewardRate;    // Tokens distributed per second.
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
-    uint256 public lockupPeriod;   // Lockup period in seconds.
+    uint256 public lockupPeriod;  // Lockup period in seconds.
 
     mapping(address => uint256) public userRewardPerTokenPaid;
     mapping(address => uint256) public rewards;
@@ -26,6 +26,7 @@ contract SimpleTokenStakingWithLockup is ReentrancyGuard, Ownable {
     event StakingTokenUpdated(address indexed newStakingToken);
     event RewardTokenUpdated(address indexed newRewardToken);
     event LockupPeriodUpdated(uint256 newLockupPeriod);
+    event RewardRateUpdated(uint256 newRewardRate);
 
     constructor(address _stakingToken, address _rewardToken, uint256 _lockupPeriod) {
         stakingToken = IERC20(_stakingToken);
@@ -113,8 +114,9 @@ contract SimpleTokenStakingWithLockup is ReentrancyGuard, Ownable {
         emit LockupPeriodUpdated(_newLockupPeriod);
     }
 
-    // Owner can update the reward rate.
-    function setRewardRate(uint256 _rewardRate) external onlyOwner {
-        rewardRate = _rewardRate;
+    // Owner can set the reward rate as tokens distributed per second.
+    function setRewardRate(uint256 _tokens, uint256 _durationInSeconds) external onlyOwner {
+        rewardRate = _tokens / _durationInSeconds;
+        emit RewardRateUpdated(rewardRate);
     }
 }
