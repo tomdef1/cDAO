@@ -1,0 +1,172 @@
+<script>
+document.addEventListener('DOMContentLoaded', async function() {
+  let web3;
+  const cDAOTokenAddress = "0x42077e348702f13ea80ce6a6a38b8b60fbb37b5d";
+  const stakingContractAddress = "0xEEAdB550Dab99C84DDc3aA85efA05F8E896c3a12";
+  if (window.ethereum) {
+    web3 = new Web3(window.ethereum);
+    try {
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      if(await web3.eth.getChainId() !== 1116) alert("Please switch to the Core network!");
+    } catch (error) {
+      console.error('User denied account access', error);
+      return;
+    }
+  } else {
+    alert('Ethereum wallet is not available. Please install MetaMask or similar!');
+    return;
+  }
+  const cDAOTokenABI = [{"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"spender","type":"address"},{"name":"amount","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}];
+  const stakingContractABI = [{"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"userEarnedCurrentPeriod","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"account","type":"address"}],"name":"userStake","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[],"name":"exit","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"getReward","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalStaked","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_amount","type":"uint256"}],"name":"stake","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"rewardRate","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"}];
+  const cDAOTokenContract = new web3.eth.Contract(cDAOTokenABI, cDAOTokenAddress);
+  const stakingContract = new web3.eth.Contract(stakingContractABI, stakingContractAddress);
+
+async function fetchCurrentPrice() {
+  const response = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=cdao&vs_currencies=usd');
+  const data = await response.json();
+  return data.cdao.usd; // Ensure this matches the exact path in the JSON response
+}
+
+async function calculateAPR() {
+  try {
+    const secondsInTwoWeeks = 1209600; // Two weeks in seconds
+    const secondsInYear = 31536000; // One year in seconds
+    
+    // Fetch the total staked amount and reward rate from the contract (in Wei)
+    const rewardRateWei = '3465000000000000000000'; // Update with dynamic value from contract
+    const totalStakedWei = await stakingContract.methods.totalStaked().call();
+    
+    // Convert reward rate and total staked from Wei to Ether for human readability
+    const rewardRateEther = web3.utils.fromWei(rewardRateWei, 'ether');
+    const totalStakedEther = web3.utils.fromWei(totalStakedWei, 'ether');
+    
+    // Calculate the annualized reward (in Ether)
+    const periodsInYear = secondsInYear / secondsInTwoWeeks;
+    const annualizedReward = parseFloat(rewardRateEther) * periodsInYear;
+
+    // Calculate APR (as a percentage)
+    const apr = (annualizedReward / parseFloat(totalStakedEther)) * 100;
+
+    return apr.toFixed(2); // Formats the APR to 2 decimal places
+  } catch (error) {
+    console.error("Error calculating APR:", error);
+    return '0';
+  }
+}
+  async function connectWallet() {
+    if (window.ethereum) {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        if (accounts.length === 0) {
+          console.error("No account found. Make sure MetaMask is unlocked.");
+          return;
+        }
+        userAccount = accounts[0];
+        const accountField = document.getElementById('account');
+        if(accountField) {
+          accountField.innerText = userAccount;
+          accountField.style.display = '';
+        } else {
+          console.error("'account' element not found.");
+        }
+  await updateBalances();
+  calculateAPR().then(apr => {
+    console.log(`Current APR: ${apr}%`);
+    document.getElementById('aprValue').innerText = `${apr}% APR`;
+  });
+}
+catch (error) {
+        console.error("Connection to wallet failed:", error);
+      }
+    } else {
+      alert("Please install MetaMask to use this feature!");
+    }
+  }
+
+  async function updateBalances() {
+    try {
+      const walletBalanceWei = await cDAOTokenContract.methods.balanceOf(userAccount).call();
+      const totalStakedWei = await stakingContract.methods.totalStaked().call();
+      const yourStakedWei = await stakingContract.methods.userStake(userAccount).call();
+      const earnedWei = await calculateEarnedRewards();
+      const formattedWalletBalance = Number(web3.utils.fromWei(walletBalanceWei, 'ether')).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+      const formattedTotalStaked = Number(web3.utils.fromWei(totalStakedWei, 'ether')).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+      const formattedYourStaked = Number(web3.utils.fromWei(yourStakedWei, 'ether')).toLocaleString(undefined, { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+      const formattedEarned = earnedWei;
+      document.getElementById('wallet').innerText = formattedWalletBalance;
+      document.getElementById('totalStaked').innerText = formattedTotalStaked;
+      document.getElementById('yourStaked').innerText = formattedYourStaked;
+      document.getElementById('earned').innerText = formattedEarned;
+    } catch (error) {
+      console.error("Error updating balances:", error);
+    }
+  }
+
+  async function calculateEarnedRewards() {
+    try {
+      const earned = await stakingContract.methods.userEarnedCurrentPeriod(userAccount).call();
+      return earned ? web3.utils.fromWei(earned, 'ether') : '0';
+    } catch (error) {
+      console.error("Error fetching earned rewards:", error);
+      return '0';
+    }
+  }
+
+  async function stakeTokens() {
+    const amountToStakeInput = document.getElementById('amountStake').value.trim();
+    if (!amountToStakeInput) {
+      alert('Please enter an amount to stake');
+      return;
+    }
+    const amountToStake = web3.utils.toWei(amountToStakeInput, 'ether');
+    try {
+      const allowance = await cDAOTokenContract.methods.allowance(userAccount, stakingContractAddress).call();
+      if (new web3.utils.BN(allowance).lt(new web3.utils.BN(amountToStake))) {
+        const approveTx = await cDAOTokenContract.methods.approve(stakingContractAddress, amountToStake).send({ from: userAccount });
+        if (!approveTx.status) {
+          alert('Approval transaction failed.');
+          return;
+        }
+      }
+      const stakeTx = await stakingContract.methods.stake(amountToStake).send({ from: userAccount });
+      if (stakeTx.status) {
+        alert('Tokens successfully staked.');
+        await updateBalances();
+      } else {
+        alert('Staking transaction failed.');
+      }
+    } catch (error) {
+      console.error("Staking failed:", error);
+      alert("Error during staking: " + error.message);
+    }
+  }
+
+  async function unstakeTokens() {
+    try {
+      await stakingContract.methods.exit().send({ from: userAccount });
+      await updateBalances();
+    } catch (error) {
+      console.error("Unstaking failed:", error);
+    }
+  }
+
+  async function withdrawRewards() {
+    try {
+      await stakingContract.methods.getReward().send({ from: userAccount });
+      await updateBalances();
+    } catch (error) {
+      console.error("Withdraw rewards failed:", error);
+    }
+  }
+
+  const connectWalletButton = document.getElementById('connectWalletButton');
+  const stakeButton = document.getElementById('stakeButton');
+  const unstakeButton = document.getElementById('unstakeButton');
+  const withdrawRewardsButton = document.getElementById('withdrawRewardsButton');
+
+  connectWalletButton.addEventListener('click', connectWallet);
+  stakeButton.addEventListener('click', stakeTokens);
+  unstakeButton.addEventListener('click', unstakeTokens);
+  withdrawRewardsButton.addEventListener('click', withdrawRewards);
+});
+</script>
