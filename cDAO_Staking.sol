@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+
 //___________________________________________________________
 /************************************************************
 Contract: Stake ERC20 - Recieve ERC20 with Advanced Functions
